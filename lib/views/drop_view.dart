@@ -1,6 +1,6 @@
-import "package:Asciiartor/utils/theme.dart";
-import "package:Asciiartor/widgets/scaffold.dart";
-import "package:Asciiartor/controllers/controller.dart";
+import "package:asciiartor/utils/theme.dart";
+import "package:asciiartor/widgets/scaffold.dart";
+import "package:asciiartor/controllers/controller.dart";
 
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
@@ -27,10 +27,11 @@ class DropArea extends StatelessWidget{
             onDragEntered: (_) => dropHoverColor.value = Colors.white70,
             onDragExited: (_) => dropHoverColor.value = Colors.white,
             child: DottedBorder(
-              borderType: BorderType.RRect,
-              radius: Radius.circular(theme.sizes.dropAreaBorder),
-              dashPattern: [theme.sizes.dropAreaDashPattern],
-              strokeWidth: theme.sizes.dropAreaStrokeWidth,
+              options: RoundedRectDottedBorderOptions(
+                radius: Radius.circular(theme.sizes.dropAreaBorder),
+                dashPattern: [theme.sizes.dropAreaDashPattern],
+                strokeWidth: theme.sizes.dropAreaStrokeWidth,
+              ),
               child: ValueListenableBuilder<Color>(
                 valueListenable: dropHoverColor,
                 builder: (_, dropHoverColor, __) => AnimatedContainer(
@@ -79,6 +80,7 @@ class DropArea extends StatelessWidget{
 
   void pickAndNavigate(BuildContext context, Controller controller){
     controller.pickImageFile().then((imageFile){
+      if (!context.mounted) return;
       loadAndNavigate(context, controller, imageFile);
     });
   }
@@ -87,8 +89,10 @@ class DropArea extends StatelessWidget{
     if (imageFile == null) return;
     showLoadingDialog(context);
     controller.loadImage(imageFile).then((image){
+      if (!context.mounted) return;
       Navigator.popAndPushNamed(context, "/ascii", arguments: image);
     }).catchError((error) {
+      if (!context.mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

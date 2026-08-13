@@ -1,6 +1,6 @@
 {
-    "name": "Asciiartor",
-    "short_name": "Asciiartor",
+    "name": "asciiartor",
+    "short_name": "asciiartor",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

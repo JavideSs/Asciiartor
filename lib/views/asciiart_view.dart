@@ -1,7 +1,7 @@
-import "package:Asciiartor/utils/theme.dart";
-import "package:Asciiartor/widgets/scaffold.dart";
-import "package:Asciiartor/controllers/controller.dart";
-import "package:Asciiartor/models/image.dart";
+import "package:asciiartor/utils/theme.dart";
+import "package:asciiartor/widgets/scaffold.dart";
+import "package:asciiartor/controllers/controller.dart";
+import "package:asciiartor/models/image.dart";
 
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
@@ -17,7 +17,7 @@ class AsciiartView extends StatelessWidget{
     final controller = context.read<Controller>();
 
     final args = ModalRoute.of(context)?.settings.arguments;
-    final image = args is AsciiImage ? args : AsciiImage.error(context);
+    final image = args is AsciiImage ? args : AsciiImage.error();
 
     return MyScaffold(
       body: Column(
@@ -64,6 +64,7 @@ class AsciiartView extends StatelessWidget{
 
   void copyImage(BuildContext context, Controller controller, AsciiImage image){
     controller.copyImage(image).then((saved){
+      if (!context.mounted) return;
       final result = saved ? "ASCII art copied to clipboard" : "Error :(";
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -76,6 +77,7 @@ class AsciiartView extends StatelessWidget{
 
   void saveImage(BuildContext context, Controller controller, AsciiImage image){
     controller.saveImage(image).then((saved){
+      if (!context.mounted) return;
       final result = saved ? "ASCII art image saved" : "Error :(";
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

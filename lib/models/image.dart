@@ -37,7 +37,7 @@ class AsciiImage{
     );
   }
 
-  static AsciiImage error(BuildContext context){
+  static AsciiImage error(){
     const msg1 = "Hello friend...";
     const msg2 = "We need help, we are lost";
 

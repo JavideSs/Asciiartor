@@ -1,11 +1,11 @@
-import "package:Asciiartor/services/service.dart";
-import "package:Asciiartor/models/image.dart";
+import "package:asciiartor/services/service.dart";
+import "package:asciiartor/models/image.dart";
 
 import "package:flutter/material.dart";
 import 'package:flutter/services.dart';
 import "package:image_picker/image_picker.dart";
 
-class Controller extends ChangeNotifier{
+class Controller{
   final service = Service();
 
   Future<AsciiImage> loadImage(XFile imageFile) async{
@@ -18,13 +18,16 @@ class Controller extends ChangeNotifier{
   }
 
   Future<bool> copyImage(AsciiImage image) async{
-    await Clipboard.setData(ClipboardData(text: image.string));
-    return true;
+    try{
+      await Clipboard.setData(ClipboardData(text: image.string));
+      return true;
+    } catch (_){
+      return false;
+    }
   }
 
   Future<bool> saveImage(AsciiImage image) async{
     final path = await service.saveImage(image);
-    if(path == null) return false;
-    return true;
+    return path != null;
   }
 }

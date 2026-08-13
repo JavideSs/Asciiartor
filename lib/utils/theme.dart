@@ -1,4 +1,4 @@
-import "package:Asciiartor/utils/responsive.dart";
+import "package:asciiartor/utils/responsive.dart";
 
 import "package:flutter/material.dart";
 
@@ -52,7 +52,7 @@ class AppTheme{
   final Color secondaryColor;
   final Color accentColor;
 
-  AppTheme(context, {
+  AppTheme(BuildContext context, {
     required this.primaryColor,
     required this.secondaryColor,
     required this.accentColor
@@ -74,7 +74,7 @@ class AppTheme{
       ),
     ),
 
-    bottomAppBarTheme: BottomAppBarTheme(
+    bottomAppBarTheme: BottomAppBarThemeData(
       color: accentColor,
       height: sizes.bottomAppBarHeight,
     ),

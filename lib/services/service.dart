@@ -1,15 +1,13 @@
-import "package:Asciiartor/models/image.dart";
+import "package:asciiartor/models/image.dart";
 
 import "dart:ui" as ui;
 import "dart:io" as io;
 
 import "package:flutter/foundation.dart" show kIsWeb;
 import "package:path/path.dart";
-import "package:device_info_plus/device_info_plus.dart";
-import "package:path_provider/path_provider.dart";
-import "package:permission_handler/permission_handler.dart";
-import "package:image_gallery_saver/image_gallery_saver.dart";
-import "package:universal_html/html.dart";
+
+import "package:file_saver/file_saver.dart";
+import "package:gal/gal.dart";
 
 class Service{
   Future<String?> saveImage(AsciiImage image) async{
@@ -17,44 +15,45 @@ class Service{
     if (imageData == null) return null;
     final imageBytes = imageData.buffer.asUint8List();
 
-    //Simpler with https://pub.dev/packages/file_saver
+    final imageName = "${basenameWithoutExtension(image.name)}_asciilized";
+    final imageExtension = "png";
+    final imageFile = "$imageName.$imageExtension";
+
     if (kIsWeb){
-      final blob = Blob([imageBytes]);
-      final url = Url.createObjectUrlFromBlob(blob);
-      AnchorElement(href: url)
-        ..setAttribute("download", image.name)
-        ..click();
-      Url.revokeObjectUrl(url);
-      return "web-download-path://${image.name}";
+      await FileSaver.instance.saveFile(
+        name: imageName,
+        bytes: imageBytes,
+        fileExtension: imageExtension,
+        mimeType: MimeType.png,
+      );
+      return "web-download-path:$imageFile";
     }
-    if (io.Platform.isWindows || io.Platform.isLinux || io.Platform.isMacOS){
-      final dir = await getDownloadsDirectory();
-      if (dir == null) return null;
-      final file = io.File(join(dir.path, image.name));
-      file.writeAsBytes(imageBytes);
-      return file.path;
+    if (io.Platform.isWindows || io.Platform.isMacOS || io.Platform.isLinux){
+      return FileSaver.instance.saveFile(
+        name: imageName,
+        bytes: imageBytes,
+        fileExtension: imageExtension,
+        mimeType: MimeType.png,
+      );
     }
-    if (io.Platform.isAndroid || io. Platform.isIOS){
-      if (io.Platform.isAndroid){
-        final androidInfo = await DeviceInfoPlugin().androidInfo;
-        if (androidInfo.version.sdkInt < 30){
-          if (!await Permission.storage.request().isGranted) return null;
+    if (io.Platform.isAndroid || io.Platform.isIOS){
+      try{
+        if (!await Gal.hasAccess()){
+          if (!await Gal.requestAccess()) return null;
         }
+        await Gal.putImageBytes(imageBytes, name: imageName);
+        return imageFile;
+      } on GalException{
+        return null;
       }
-      else if (io.Platform.isIOS){
-        if (!await Permission.photos.request().isGranted) return null;
-      }
-      final result = await ImageGallerySaver.saveImage(imageBytes, quality: 100, name: image.name, isReturnImagePathOfIOS: true);
-      if (!result["isSuccess"]) return null;
-      return result["filePath"];
     }
     if (io.Platform.isFuchsia){
       final dir = io.Directory.current;
       if (!dir.existsSync()) dir.createSync(recursive: true);
-      final file = io.File(join(dir.path, image.name));
+      final file = io.File(join(dir.path, imageFile));
       file.writeAsBytes(imageBytes);
       return file.path;
     }
-    return image.name;
+    return null;
   }
 }
