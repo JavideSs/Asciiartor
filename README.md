@@ -28,7 +28,7 @@ flutter build <platform> --release
 ---
 
 ## Dependencies
-- Flutter (3.22.2) & Dart (3.4.3).
+- Flutter (3.44.9) & Dart (3.12.2).
 - Refer to [pubspec.yaml](pubspec.yaml)
 
 ---
@@ -41,4 +41,4 @@ Your feedback is most welcomed by filling a
 
 Author:  
 Javier Mellado Sánchez  
-2025
+2025 - 2026

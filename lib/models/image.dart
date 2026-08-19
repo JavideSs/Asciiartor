@@ -1,30 +1,50 @@
-import "dart:typed_data";
 import "dart:ui" as ui;
 
 import "package:flutter/material.dart";
+import "package:flutter/foundation.dart";
+
+enum AsciiImageStyle{
+  classic("@%#*+=-:. "),
+  simple("@#:. "),
+  dots("●●○○••··  ",),
+  blocks("█▓▒░ "),
+  binary("@ "),
+  binaryBlock("█ ",),
+  detailed(r"""$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\\\|()1{}[]?-_+~<>i!lI;:,\"^`'. """,),
+  dense("@@##88&&WWMMBBQRRNNXXGGEE00SSZZccvvuuJJFFLLii11ttff//\\\\||()[]{} ",);
+
+  final String characters;
+  const AsciiImageStyle(this.characters);
+}
 
 class AsciiImage{
-  static const asciiChars = "@%#*+=-:. ";
-
   final String name;
   final ui.Image original;
   final int width;
   final int height;
-  final String string;
-  final ui.Image image;
+  AsciiImageStyle style;
+  int resolution;
+  String string;
+  ui.Image image;
 
   AsciiImage({
     required this.name,
     required this.original,
     required this.width,
     required this.height,
+    required this.style,
+    required this.resolution,
     required this.string,
     required this.image,
   });
 
-  static Future<AsciiImage> fromBytes(String name, Uint8List imageBytes) async{
+  static Future<AsciiImage> fromBytes(String name, Uint8List imageBytes, {AsciiImageStyle style = AsciiImageStyle.classic, int resolution = 10}) async{
     final image = await decodeImageFromList(imageBytes);
-    final asciiartString = await getAsciiart(image, quality:10);
+    return fromImage(name, image, style:style, resolution:resolution);
+  }
+
+  static Future<AsciiImage> fromImage(String name, ui.Image image, {AsciiImageStyle style = AsciiImageStyle.classic, int resolution = 10}) async{
+    final asciiartString = await getAsciiart(image, style, resolution);
     final asciiartImage = await getImageFromAsciiart(asciiartString, image.width, image.height);
 
     return AsciiImage(
@@ -32,6 +52,8 @@ class AsciiImage{
       original: image,
       width: image.width,
       height: image.height,
+      style: style,
+      resolution: resolution,
       string: asciiartString,
       image: asciiartImage,
     );
@@ -46,10 +68,51 @@ class AsciiImage{
       original: textImage(msg2),
       width: 0,
       height: 0,
+      style: AsciiImageStyle.classic,
+      resolution: 3,
       string: msg1,
       image: textImage(msg1),
     );
   }
+
+  Future<void> config({AsciiImageStyle? style, int? resolution}) async{
+    if (name == "error") return;
+
+    style ??= this.style;
+    resolution ??= this.resolution;
+
+    final oldimage = image;
+
+    string = await getAsciiart(original, style, resolution);
+    image = await getImageFromAsciiart(string, width, height);
+    this.style = style;
+    this.resolution = resolution;
+
+    oldimage.dispose();
+  }
+
+  void dispose(){
+    original.dispose();
+    image.dispose();
+  }
+}
+
+class AsciiImageData{
+  final Uint8List bytes;
+  final int width;
+  final int height;
+  final String characters;
+  final int resolution;
+  final double aspectRatioChar;
+
+  const AsciiImageData({
+    required this.bytes,
+    required this.width,
+    required this.height,
+    required this.characters,
+    required this.resolution,
+    required this.aspectRatioChar,
+  });
 }
 
 ui.Image textImage(String text){
@@ -72,65 +135,85 @@ ui.Image textImage(String text){
   return picture.toImageSync(width, height);
 }
 
+final double aspectRatioChar = (){
+  final textPainter = TextPainter(
+    text: const TextSpan(
+      text: "W",
+      style: TextStyle(
+        fontFamily: "FiraMono",
+      ),
+    ),
+    textDirection: TextDirection.ltr,
+  );
+
+  textPainter.layout();
+
+  return textPainter.width / textPainter.height;
+}();
+
 double luminance(int r, int g, int b){
   return ((0.299 * r + 0.587 * g + 0.114 * b).round() / 255);
 }
 
-Future<String> getAsciiart(ui.Image image, {int? quality}) async{
-  quality = quality ?? 100;
-
-  final textPainter = TextPainter(
-    text: const TextSpan(
-      text: "W",
-      style: TextStyle(fontFamily: "FiraMono")
-    ),
-    textDirection: TextDirection.ltr,
-  );
-  textPainter.layout();
-  final aspectRatioChar = textPainter.width / textPainter.height;
-
-  final cols = (quality/100 * image.width).round();
-  final rows = (((image.height/image.width) * cols).round() * aspectRatioChar).round();
-
-  final cellWidth = image.width / cols;
-  final cellHeight = image.height / rows;
-
+Future<String> getAsciiart(ui.Image image, AsciiImageStyle style, int resolution) async{
   final imageData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
   if (imageData == null) return "";
 
-  final buffer = StringBuffer();
+  String generateAsciiart(AsciiImageData imageData){
+    final cols = (imageData.resolution/100 * imageData.width).round().clamp(1, imageData.width);
+    final rows = (((imageData.height/imageData.width) * cols).round() * imageData.aspectRatioChar).round();
 
-  for (int y=0; y<rows; y++){
-    for (int x=0; x<cols; x++){
-      double sumLuma = 0;
-      int count = 0;
+    final cellWidth = imageData.width / cols;
+    final cellHeight = imageData.height / rows;
 
-      for (int cy=0; cy<cellHeight; cy++){
-        final py = (y * cellHeight + cy).floor();
-        if (py >= image.height) continue;
+    final buffer = StringBuffer();
 
-        for (int cx=0; cx<cellWidth; cx++){
-          final px = (x * cellWidth + cx).floor();
-          if (px >= image.width) continue;
+    for (int y=0; y<rows; y++){
+      for (int x=0; x<cols; x++){
+        double sumLuma = 0;
+        int count = 0;
 
-          final offset = (py * image.width + px) * 4;
-          final r = imageData.getUint8(offset);
-          final g = imageData.getUint8(offset + 1);
-          final b = imageData.getUint8(offset + 2);
-          //final a = imageData.getUint8(offset + 3);
+        for (int cy=0; cy<cellHeight; cy++){
+          final py = (y * cellHeight + cy).floor();
+          if (py >= imageData.height) continue;
 
-          sumLuma += luminance(r,g,b);
-          count++;
+          for (int cx=0; cx<cellWidth; cx++){
+            final px = (x * cellWidth + cx).floor();
+            if (px >= imageData.width) continue;
+
+            final offset = (py * imageData.width + px) * 4;
+            final r = imageData.bytes[offset];
+            final g = imageData.bytes[offset + 1];
+            final b = imageData.bytes[offset + 2];
+            //final a = imageData.bytes[offset + 3];
+
+            sumLuma += luminance(r,g,b);
+            count++;
+          }
         }
-      }
-      final avgLuma = count > 0 ? sumLuma / count : 0.0;
+        final avgLuma = count > 0 ? sumLuma / count : 0.0;
 
-      final charIndex = (avgLuma * (AsciiImage.asciiChars.length-1)).round();
-      buffer.write(AsciiImage.asciiChars[charIndex]);
+        final charIndex = (avgLuma * (imageData.characters.length-1)).round();
+        buffer.write(imageData.characters[charIndex]);
+      }
+      if (y < rows-1){
+        buffer.writeln();
+      }
     }
-    buffer.writeln();
+    return buffer.toString();
   }
-  return buffer.toString();
+
+  return compute(
+    generateAsciiart,
+    AsciiImageData(
+      bytes: imageData.buffer.asUint8List(),
+      width: image.width,
+      height: image.height,
+      characters: style.characters,
+      resolution: resolution,
+      aspectRatioChar: aspectRatioChar,
+    ),
+  );
 }
 
 Future<ui.Image> getImageFromAsciiart(String asciiart, int width, int height) async{
@@ -147,6 +230,7 @@ Future<ui.Image> getImageFromAsciiart(String asciiart, int width, int height) as
 
   canvas.drawRect(Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()), Paint()..color = Colors.white);
 
+  final sw = Stopwatch()..start();
   for (int y=0; y<lines.length; y++){
     final line = lines[y];
     for (int x=0; x<line.length; x++){
@@ -166,6 +250,11 @@ Future<ui.Image> getImageFromAsciiart(String asciiart, int width, int height) as
       final dy = y * cellHeight + ((cellHeight - textPainter.height) / 2);
 
       textPainter.paint(canvas, Offset(dx, dy));
+
+      if (sw.elapsedMilliseconds > 8){
+        await Future<void>.delayed(Duration.zero);
+        sw.reset();
+      }
     }
   }
 

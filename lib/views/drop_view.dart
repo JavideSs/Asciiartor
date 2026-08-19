@@ -1,5 +1,6 @@
 import "package:asciiartor/utils/theme.dart";
 import "package:asciiartor/widgets/scaffold.dart";
+import "package:asciiartor/widgets/loading_dialog.dart";
 import "package:asciiartor/controllers/controller.dart";
 
 import "package:flutter/material.dart";
@@ -10,7 +11,7 @@ import "package:dotted_border/dotted_border.dart";
 class DropArea extends StatelessWidget{
   DropArea({super.key});
 
-  final dropHoverColor = ValueNotifier<Color>(Colors.white);
+  final isDropHovering = ValueNotifier<bool>(false);
 
   @override
   Widget build(BuildContext context){
@@ -24,20 +25,16 @@ class DropArea extends StatelessWidget{
           onTap: () => pickAndNavigate(context, controller),
           child: DropTarget(
             onDragDone: (detail) => loadAndNavigate(context, controller, detail.files.firstOrNull),
-            onDragEntered: (_) => dropHoverColor.value = Colors.white70,
-            onDragExited: (_) => dropHoverColor.value = Colors.white,
+            onDragEntered: (_) => isDropHovering.value = true,
+            onDragExited: (_) => isDropHovering.value = false,
             child: DottedBorder(
-              options: RoundedRectDottedBorderOptions(
-                radius: Radius.circular(theme.sizes.dropAreaBorder),
-                dashPattern: [theme.sizes.dropAreaDashPattern],
-                strokeWidth: theme.sizes.dropAreaStrokeWidth,
-              ),
-              child: ValueListenableBuilder<Color>(
-                valueListenable: dropHoverColor,
-                builder: (_, dropHoverColor, __) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 500),
+              options: theme.dottedBorderOptions,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: isDropHovering,
+                builder: (_, isDropHovering, _) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
                   decoration: BoxDecoration(
-                    color: dropHoverColor,
+                    color: !isDropHovering ? theme.colorWidgets["dropAreaHovering"] : theme.colorWidgets["dropAreaHovering"]!.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(theme.sizes.dropAreaBorder),
                   ),
                   child: Center(
@@ -68,16 +65,6 @@ class DropArea extends StatelessWidget{
     );
   }
 
-  void showLoadingDialog(BuildContext context){
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-  }
-
   void pickAndNavigate(BuildContext context, Controller controller){
     controller.pickImageFile().then((imageFile){
       if (!context.mounted) return;
@@ -91,7 +78,7 @@ class DropArea extends StatelessWidget{
     controller.loadImage(imageFile).then((image){
       if (!context.mounted) return;
       Navigator.popAndPushNamed(context, "/ascii", arguments: image);
-    }).catchError((error) {
+    }).catchError((error){
       if (!context.mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(

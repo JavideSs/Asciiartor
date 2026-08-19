@@ -20,13 +20,18 @@ class MyApp extends StatelessWidget{
 
   @override
   Widget build(BuildContext context){
-    return MaterialApp(
-      title: "Asciiartor",
-      theme: AppTheme.original(context).toThemeData(),
-      initialRoute: "/",
-      routes: {
-        "/": (context) => DropArea(),
-        "/ascii": (context) => AsciiartView(),
+    return ValueListenableBuilder<AppColorsTheme>(
+      valueListenable: AppTheme.modeNotifier,
+      builder: (context, mode, _){
+        return MaterialApp(
+          title: "Asciiartor",
+          theme: AppTheme.getThemeData(context),
+          initialRoute: "/",
+          routes: {
+            "/": (context) => DropArea(),
+            "/ascii": (context) => AsciiartView(),
+          },
+        );
       },
     );
   }
